@@ -1,27 +1,17 @@
-from fastapi import APIRouter
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 import jwt
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
-from sqlmodel import SQLModel, Field, create_engine, select, Session
+from sqlmodel import select, Session
 from typing import Optional
-import main
-from pydantic import BaseModel
+from db import engine
+from models import User
+from datetime import datetime, timedelta
 
-router = APIRouter()
+user_router = APIRouter()
 
-class UserOutput(BaseModel):
-    id: int
-    username: str = Field(..., max_length=100)
-    email: str
-
-class User(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    username: str = Field(..., max_length=100)
-    email: str
-    password_hashed: str
-
-
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 def verify_password(plain_password, hashed_password):
     return PasswordHash.recommended().verify(password=plain_password, hash=hashed_password)
@@ -29,61 +19,51 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password: str):
     return PasswordHash.recommended().hash(password=password)
 
-@router.post("/users", tags=["users"])
-def create_user(user: User):
-    try:
-        user_data = user.model_dump(exclude_unset=True)
-        user_data["password_hashed"] = get_password_hash(user_data["password_hashed"])
-        user = User(**user_data)
-        with Session(main.engine) as session:
-            session.add(user)
-            session.commit()
-            session.refresh(user)
-            return {"message": "User created successfully",
-            "user": UserOutput(**user.model_dump())}
-    except Exception as e:
-        return {"error": str(e)}
+def find_user(session: Session, email: str):
+    return session.exec(select(User).where(User.email == email)).first()
 
-@router.get("/users", tags=["users"])
-def get_users():
-    try:
-        with Session(main.engine) as session:
-            users = session.exec(select(User)).all()
-        return [UserOutput(**user.model_dump()) for user in users]
-    except Exception as e:
-        return {"error": str(e)}
+def authenticate_user(session: Session, email: str, password: str):
+    user = find_user(session, email)
+    if not user:
+        print(f"User not found for email: {email}")
+        return False
+    if not verify_password(password, user.password_hashed):
+        print(f"Invalid password for user: {email}")
+        return False
+    return user
 
-@router.get("/users/{user_id}", tags=["users"])
-def get_user(user_id: int):
-    try:
-        with Session(main.engine) as session:
-            user = session.get(User, user_id)
-        return UserOutput(**user.model_dump())
-    except Exception as e:
-        return {"error": str(e)}
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, "secret", algorithm="HS256")
+    return encoded_jwt
 
-@router.put("/users/{user_id}", tags=["users"])
-def update_user(user_id: int, user: User):
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     try:
-        with Session(main.engine) as session:
-            stored_user = session.get(User, user_id)
-            new_data = user.model_dump(exclude_unset=True)
-            updated_user = stored_user.model_copy(update=new_data)
-            session.add(updated_user)
-            session.commit()
-            session.refresh(updated_user)
-        return UserOutput(**updated_user.model_dump())
-    except Exception as e:
-        return {"error": str(e)}
+        payload = jwt.decode(token, "secret", algorithms=["HS256"])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except InvalidTokenError:
+        raise credentials_exception
+    with Session(engine) as session:
+        user = find_user(session, email=email)
+    if user is None:
+        raise credentials_exception
+    return user
 
-@router.delete("/users/{user_id}", tags=["users"])
-def delete_user(user_id: int):
-    try:
-        with Session(main.engine) as session:
-            user = session.get(User, user_id)
-            session.delete(user)
-            session.commit()
-        return {"message": "User deleted successfully"}
-    except Exception as e:
-        return {"error": str(e)}
+async def get_current_active_user(current_user: User = Depends(get_current_user)):
+    if not current_user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
 
+    
