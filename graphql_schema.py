@@ -1,6 +1,5 @@
 from pydantic import Field
 import strawberry
-import strawberry
 from typing import List, Optional
 from fastapi import Request
 from users import get_current_user
@@ -84,7 +83,7 @@ class Query:
                 users = session.exec(select(User)).all()
             return users
         except Exception as e:
-            return {"error": str(e)}
+            raise HTTPException(status_code=404, detail="User not found")
 
     @strawberry.field
     async def get_user(self, userId: int) -> UserType:
@@ -93,7 +92,7 @@ class Query:
                 user = session.get(User, userId)
             return user
         except Exception as e:
-            return {"error": str(e)}
+            raise HTTPException(status_code=404, detail="User not found")
 
 @strawberry.type
 class Mutation:
@@ -147,21 +146,21 @@ class Mutation:
                 session.refresh(user)
                 return user
         except Exception as e:
-            return {"error": str(e)}
+            raise HTTPException(status_code=404, detail="User not found")
 
     @strawberry.field
-    async def update_user(self, userId: int, username: str, email: str, password: str, is_active: bool) -> UserType:
+    async def update_user(self, userId: int, username: str, password: str, is_active: bool) -> UserType:
         try:
             with Session(engine) as session:
                 stored_user = session.get(User, userId)
-                new_data = {"username": username, "email": email, "password": password, "is_active": is_active}
+                new_data = {"username": username, "password": password, "is_active": is_active}
                 updated_user = stored_user.model_copy(update=new_data)
                 session.add(updated_user)
                 session.commit()
                 session.refresh(updated_user)
             return updated_user
         except Exception as e:
-            return {"error": str(e)}
+            raise HTTPException(status_code=404, detail="User not found")
     
     @strawberry.field
     async def delete_user(self, userId: int) -> UserType:
@@ -174,7 +173,7 @@ class Mutation:
                 session.commit()
             return user
         except Exception as e:
-            return {"error": str(e)}
+            raise HTTPException(status_code=404, detail="User not found")
 
     
     @strawberry.field
