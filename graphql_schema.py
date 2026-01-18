@@ -1,11 +1,12 @@
-from pydantic import Field
+from users import get_password_hash
 import strawberry
 from typing import List, Optional
 from fastapi import Request
 from users import get_current_user
 from models import Todo, User
 from db import engine
-from sqlmodel import Session, select
+from sqlalchemy.orm import Session
+from sqlalchemy import select
 from fastapi import HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from users import authenticate_user, create_access_token
@@ -67,7 +68,7 @@ class Query:
     @strawberry.field
     def todos(self) -> List[TodoType]:
         with Session(engine) as session:
-            todos = session.exec(select(Todo)).all()
+            todos = session.execute(select(Todo)).scalars().all()
         return todos
     
     @strawberry.field
@@ -80,7 +81,7 @@ class Query:
     def get_users(self) -> List[UserType]:
         try:
             with Session(engine) as session:
-                users = session.exec(select(User)).all()
+                users = session.execute(select(User)).scalars().all()
             return users
         except Exception as e:
             raise HTTPException(status_code=404, detail="User not found")
@@ -89,7 +90,7 @@ class Query:
     async def get_user(self, userId: int) -> UserType:
         try:
             with Session(engine) as session:
-                user = session.get(User, userId)
+                user = session.execute(select(User).where(User.id == userId)).scalar()
             return user
         except Exception as e:
             raise HTTPException(status_code=404, detail="User not found")
@@ -139,14 +140,15 @@ class Mutation:
     @strawberry.field
     async def create_user(self, UserId: int, username: str, email: str, password: str, is_active: bool) -> UserType:
         try:
-            user = User(id=UserId, username=username, email=email, password=password, is_active=is_active)
+            user = User(id=UserId, username=username, email=email, password_hashed=get_password_hash(password), is_active=is_active)
             with Session(engine) as session:
                 session.add(user)
                 session.commit()
                 session.refresh(user)
                 return user
         except Exception as e:
-            raise HTTPException(status_code=404, detail="User not found")
+            print(e)
+            raise HTTPException(status_code=404, detail="User not created")
 
     @strawberry.field
     async def update_user(self, userId: int, username: str, password: str, is_active: bool) -> UserType:

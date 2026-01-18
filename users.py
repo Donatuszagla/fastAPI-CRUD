@@ -3,7 +3,8 @@ from fastapi.security import OAuth2PasswordBearer
 import jwt
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
-from sqlmodel import select, Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 from typing import Optional
 from db import engine
 from models import User

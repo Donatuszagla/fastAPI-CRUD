@@ -1,21 +1,26 @@
-from sqlmodel import SQLModel, Field
+from sqlalchemy.orm import DeclarativeBase, mapped_column
 from typing import Optional
-from pydantic import EmailStr, BaseModel
+from pydantic import BaseModel
+from sqlalchemy import String, Boolean, Integer
 
+class Base(DeclarativeBase):
+    pass
 
-class Todo(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    title: str = Field(..., max_length=100)
-    description: str
-    completed: bool
-    priority: str
+class Todo(Base):
+    __tablename__ = "todos"
+    id = mapped_column(Integer, primary_key=True)
+    title = mapped_column(String(100), nullable=False)
+    description = mapped_column(String(100), nullable=False)
+    completed = mapped_column(Boolean, nullable=False)
+    priority = mapped_column(String(100), nullable=False)
 
-class User(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    username: str = Field(..., min_length=3, max_length=100, unique=True)
-    email: EmailStr
-    password_hashed: str
-    is_active: bool = True
+class User(Base):
+    __tablename__ = "users"
+    id = mapped_column(Integer, primary_key=True)
+    username = mapped_column(String(100), nullable=False, unique=True)
+    email = mapped_column(String(100), nullable=False, unique=True)
+    password_hashed = mapped_column(String(100), nullable=False)
+    is_active = mapped_column(Boolean, nullable=False, default=True)
 
 
 
