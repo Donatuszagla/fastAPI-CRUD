@@ -188,7 +188,7 @@ class Mutation:
                 detail="Incorrect email or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        access_token_expires = timedelta(minutes=30)
+        access_token_expires = timedelta(minutes=15)
         access_token = create_access_token(
             data={"sub": user.email}, expires_delta=access_token_expires
         )
