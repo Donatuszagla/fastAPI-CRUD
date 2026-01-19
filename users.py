@@ -21,7 +21,7 @@ def get_password_hash(password: str):
     return PasswordHash.recommended().hash(password=password)
 
 def find_user(session: Session, email: str):
-    return session.exec(select(User).where(User.email == email)).first()
+    return session.execute(select(User).where(User.email == email)).scalar()
 
 def authenticate_user(session: Session, email: str, password: str):
     user = find_user(session, email)
