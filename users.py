@@ -21,14 +21,14 @@ def get_password_hash(password: str):
     return PasswordHash.recommended().hash(password=password)
 
 def find_user(session: Session, email: str):
-    return session.exec(select(User).where(User.email == email)).first()
+    return session.execute(select(User).where(User.email == email)).scalar()
 
 def authenticate_user(session: Session, email: str, password: str):
     user = find_user(session, email)
     if not user:
         print(f"User not found for email: {email}")
         return False
-    if not verify_password(password, user.password_hashed):
+    if not verify_password(password, user.password_hashed):   
         print(f"Invalid password for user: {email}")
         return False
     return user

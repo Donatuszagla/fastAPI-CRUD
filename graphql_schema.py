@@ -138,9 +138,10 @@ class Mutation:
         return todo
 
     @strawberry.field
-    async def create_user(self, UserId: int, username: str, email: str, password: str, is_active: bool) -> UserType:
+    async def create_user(self, username: str, email: str, password: str, is_active: bool) -> UserType:
         try:
-            user = User(id=UserId, username=username, email=email, password_hashed=get_password_hash(password), is_active=is_active)
+            user = User(username=username, email=email, password_hashed=get_password_hash(password), is_active=is_active)
+            print(user)
             with Session(engine) as session:
                 session.add(user)
                 session.commit()
@@ -148,7 +149,7 @@ class Mutation:
                 return user
         except Exception as e:
             print(e)
-            raise HTTPException(status_code=404, detail="User not created")
+            raise HTTPException(status_code=404, detail=f"User not created: {e}")
 
     @strawberry.field
     async def update_user(self, userId: int, username: str, password: str, is_active: bool) -> UserType:
@@ -156,13 +157,15 @@ class Mutation:
             with Session(engine) as session:
                 stored_user = session.get(User, userId)
                 new_data = {"username": username, "password": password, "is_active": is_active}
-                updated_user = stored_user.model_copy(update=new_data)
-                session.add(updated_user)
+                for key, value in new_data.items():
+                    if value is not None:
+                        setattr(stored_user, key, value)
+                session.add(stored_user)
                 session.commit()
-                session.refresh(updated_user)
-            return updated_user
+                session.refresh(stored_user)
+            return stored_user
         except Exception as e:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, detail=f"User not found: {e}")
     
     @strawberry.field
     async def delete_user(self, userId: int) -> UserType:
@@ -170,12 +173,12 @@ class Mutation:
             with Session(engine) as session:
                 user = session.get(User, userId)
                 if not user:
-                    raise HTTPException(status_code=404, detail="User not found")
+                    raise HTTPException(status_code=404, detail=f"User Not Found")
                 session.delete(user)        
                 session.commit()
             return user
         except Exception as e:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, detail=f"User not deleted: {e}")
 
     
     @strawberry.field
@@ -188,7 +191,7 @@ class Mutation:
                 detail="Incorrect email or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        access_token_expires = timedelta(minutes=30)
+        access_token_expires = timedelta(minutes=15)
         access_token = create_access_token(
             data={"sub": user.email}, expires_delta=access_token_expires
         )

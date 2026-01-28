@@ -3,6 +3,7 @@ name = "crudfastapi"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
+
 requires-python = ">=3.14"
 dependencies = [
     "annotated-doc==0.0.4",
@@ -15,10 +16,14 @@ dependencies = [
     "graphql-core==3.2.7",
     "greenlet==3.3.0",
     "h11==0.16.0",
+    "httpx>=0.28.1",
     "idna==3.11",
     "packaging==25.0",
+    "pwdlib[argon2]>=0.3.0",
     "pydantic==2.12.5",
     "pydantic-core==2.41.5",
+    "pyjwt>=2.10.1",
+    "pytest>=9.0.2",
     "python-dateutil==2.9.0.post0",
     "six==1.17.0",
     "sqlalchemy==2.0.45",
