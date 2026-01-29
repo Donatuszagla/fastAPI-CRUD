@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from httpx import ASGITransport, AsyncClient
 from main import app
-from models import User, Todo, Base
+from models import User, Todo
 from users import get_password_hash
 
 
@@ -406,7 +406,13 @@ async def test_create_todo(client,user_authorization_header,seed_data):
     """
     response = await client.post("/graphql", json={"query": query}, headers=user_authorization_header)
     assert response.status_code == 200
-    assert response.json()["data"]["createTodo"] is not None
+    assert response.json()["data"]["createTodo"] == {
+        "id": 4,
+        "title": "Test Todo",
+        "description": "Test Description",
+        "completed": False,
+        "priority": "Low"
+    }
 
 
 async def test_update_todo(client,user_authorization_header,seed_data):
@@ -429,7 +435,13 @@ async def test_update_todo(client,user_authorization_header,seed_data):
     """
     response = await client.post("/graphql", json={"query": query}, headers=user_authorization_header)
     assert response.status_code == 200
-    assert response.json()["data"]["updateTodo"] is not None    
+    assert response.json()["data"]["updateTodo"] == {
+        "id": 1,
+        "title": "Updated Todo",
+        "description": "Updated Description",
+        "completed": True,
+        "priority": "High"
+    }    
 
 
 async def test_delete_todo(client,user_authorization_header,seed_data):
@@ -444,7 +456,9 @@ async def test_delete_todo(client,user_authorization_header,seed_data):
     """
     response = await client.post("/graphql", json={"query": query}, headers=user_authorization_header)
     assert response.status_code == 200
-    assert response.json()["data"]["deleteTodo"] is not None
+    assert response.json()["data"]["deleteTodo"] == {
+        "id": 1
+    }
 
 
 async def test_get_users(client, seed_data):
@@ -460,7 +474,14 @@ async def test_get_users(client, seed_data):
     """
     response = await client.post("/graphql", json={"query": query})
     assert response.status_code == 200
-    assert response.json()["data"]["getUsers"] is not None 
+    assert response.json()["data"]["getUsers"] == [
+        {
+            "id": 1,
+            "username": "test_user",
+            "email": "test_user@example.com",
+            "isActive": True
+        }
+    ]
 
 
 async def test_get_user(client, seed_data):
@@ -502,7 +523,12 @@ async def test_create_user(client, seed_data):
     """
     response = await client.post("/graphql", json={"query": query})
     assert response.status_code == 200
-    assert response.json()["data"]["createUser"] is not None   
+    assert response.json()["data"]["createUser"] == {
+        "id": 2,
+        "username": "test_u",
+        "email": "test_u@example.com",
+        "isActive": True
+    }   
 
 
 async def test_update_user(client, seed_data):
@@ -523,7 +549,12 @@ async def test_update_user(client, seed_data):
     """
     response = await client.post("/graphql", json={"query": query})
     assert response.status_code == 200
-    assert response.json()["data"]["updateUser"] is not None   
+    assert response.json()["data"]["updateUser"] == {
+        "id": 1,
+        "username": "test_user",
+        "email": "test_user@example.com",
+        "isActive": True
+    }   
 
 
 async def test_delete_user(client, seed_data):
@@ -538,7 +569,9 @@ async def test_delete_user(client, seed_data):
     """
     response = await client.post("/graphql", json={"query": query})
     assert response.status_code == 200
-    assert response.json()["data"]["deleteUser"] is not None   
+    assert response.json()["data"]["deleteUser"] == {
+        "id": 1
+    }   
 
 
 async def test_login_for_access_token(client, seed_data):
@@ -548,13 +581,14 @@ async def test_login_for_access_token(client, seed_data):
                 email: "test_user@example.com"
                 password: "test_password"
             ) {
-                accessToken
                 tokenType
             }
         }
     """
     response = await client.post("/graphql", json={"query": query})
     assert response.status_code == 200
-    assert response.json()["data"]["loginForAccessToken"] is not None
+    assert response.json()["data"]["loginForAccessToken"] == {
+        "tokenType": "bearer"
+    }
 
 
